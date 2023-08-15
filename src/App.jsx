@@ -5,6 +5,7 @@ import handleDownload from './handleDownload';
 
 function App() {
   const [data, setData] = useState(null);
+  const [trainingRecords, setTrainingRecords] = useState([]);
   const [isContact, setIsContact] = useState(false);
   const [timestamp, setTimestamp] = useState(0);
   const canvasRef = useRef(null);
@@ -14,8 +15,8 @@ function App() {
 
   const iterationData = (data, timestamp) => {
     // Determine the range of timestamps around the current timestamp
-    const lowerBound = Math.floor((timestamp - 0.32) * 30) / 30;
-    const upperBound = Math.ceil((timestamp + 0.32) * 30) / 30;
+    const lowerBound = timestamp - 1 / 3 - 0.01; // at 10 frames 30fps = 1/3 of a second
+    const upperBound = timestamp + 1 / 3 + 0.01; // and we add a little because it's not perfect
   
     // Initialize an array for the result
     const result = [];
@@ -38,7 +39,7 @@ function App() {
         });
       }
     }
-  
+
     return result;
   };
 
@@ -99,6 +100,24 @@ function App() {
   };
 
   const changeTimestamp = val => {
+    let currentValues = iterationData(data, timestamp);
+
+    let newTrainingRecord = {
+      "label": isContact ? 1 : 0,
+      "timestamp": timestamp,
+      "sequence": [
+        ...currentValues.map(cgrect => ([
+          cgrect.x,
+          cgrect.y,
+          cgrect.width,
+          cgrect.height,
+        ]))
+      ]
+    }
+
+    setTrainingRecords([...trainingRecords.filter(r => r.timestamp !== timestamp), newTrainingRecord])
+
+    setIsContact(false);
     setTimestamp(prevTimestamp => prevTimestamp + val);
   }
 
@@ -154,7 +173,7 @@ function App() {
     <>
     <header className='flex justify-between items-center w-full mb-8'>
       <input type="file" accept=".json" onChange={handleFileChange} />
-      <button onClick={() => handleDownload(data)}>Download JSON</button>
+      <button onClick={() => handleDownload(trainingRecords)}>Download JSON</button>
     </header>
 
     <main className='flex' onKeyUp={handleKeypress}>
@@ -167,8 +186,7 @@ function App() {
 
         <div className='flex items-center'>
           <p className='font-mono text-green-600'>current timestamp: {timestamp.toFixed(4)}</p>
-          <button className="ml-auto" onClick={decrementTimestamp}>- Timestamp</button>
-          <button className="ml-2" onClick={incrementTimestamp}>+ Timestamp</button>
+          <button className="ml-auto" autoFocus>Use arrowkeys to navigate</button>
         </div>
 
         <canvas ref={canvasRef} width={canvasWidth} height={canvasHeight}></canvas>
